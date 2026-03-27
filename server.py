@@ -55,29 +55,11 @@ async def analyze_local(request: LocalAnalysisRequest):
     if not local_path.exists() or not local_path.is_dir():
         raise HTTPException(status_code=400, detail="Local path does not exist or is not a directory.")
     
-    # Extract logic similar to main.py
-    source_files = engine.downloader.get_source_files(local_path)
-    if not source_files:
-        raise HTTPException(status_code=404, detail="No source files found in local directory.")
-
-    all_tokens = []
-    for file_path in source_files:
-        tokens = engine.ast_parser.parse_file(file_path)
-        all_tokens.extend(tokens)
-
-    behaviors = engine.behavior_extractor.extract(all_tokens)
-    behavior_description = engine.behavior_extractor.to_natural_language(behaviors)
-    rag_results = engine.vector_db.search_similar(behavior_description, top_k=1)
-    analysis_result = engine.analyzer.analyze(behaviors, rag_results)
-
-    return {
-        "package_name": local_path.name,
-        "registry": "local",
-        "behaviors": behaviors,
-        "behavior_description": behavior_description,
-        "rag_match": rag_results[0] if rag_results else None,
-        "analysis": analysis_result
-    }
+    result = engine.run_on_path(local_path, local_path.name)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+        
+    return result
 
 if __name__ == "__main__":
     import uvicorn # type: ignore

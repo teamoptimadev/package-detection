@@ -88,26 +88,7 @@ def main():
             transient=True,
         ) as progress:
             progress.add_task(description=f"Scanning local directory '{args.local}'...", total=None)
-            
-            # Simulated engine.run for local
-            extract_dir = Path(args.local)
-            source_files = engine.downloader.get_source_files(extract_dir)
-            all_tokens = []
-            for file_path in source_files:
-                tokens = engine.ast_parser.parse_file(file_path)
-                all_tokens.extend(tokens)
-            behaviors = engine.behavior_extractor.extract(all_tokens)
-            behavior_description = engine.behavior_extractor.to_natural_language(behaviors)
-            rag_results = engine.vector_db.search_similar(behavior_description, top_k=1)
-            analysis_result = engine.analyzer.analyze(behaviors, rag_results)
-            result = {
-                "package_name": package_name,
-                "registry": registry,
-                "behaviors": behaviors,
-                "behavior_description": behavior_description,
-                "rag_match": rag_results[0] if rag_results else None,
-                "analysis": analysis_result
-            }
+            result = engine.run_on_path(args.local, package_name)
     elif args.package_name:
         with Progress(
             SpinnerColumn(),

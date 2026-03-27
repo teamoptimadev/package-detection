@@ -40,6 +40,15 @@ This document outlines the step-by-step phases of the Malicious Package Detectio
 
 ---
 
+## 🧪 Phase 4b: Dynamic Sandbox Monitoring
+**Modules:** `detector/sandbox.py` & `utils/sandbox_wrapper.py`
+
+| Input | Process | Output |
+| :--- | :--- | :--- |
+| Extracted package directory | Executes the package in an isolated Docker container. Uses monkey patching to intercept runtime calls to `os`, `subprocess`, `socket`, and `requests`. | A JSON log of confirmed runtime behavioral events (e.g., actual shell commands executed). |
+
+---
+
 ## 🧠 Phase 5: Risk Assessment & Reasoning (LLM)
 **Module:** `llm/analyzer.py`
 

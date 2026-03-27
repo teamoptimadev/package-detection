@@ -10,7 +10,8 @@ This tool moves beyond simple regex-based heuristic scanners by:
 1.  **Parsing** source code into AST (Abstract Syntax Tree).
 2.  **Extracting** high-level behavior sequences.
 3.  **Comparing** behaviors against known malicious patterns using **RAG** (Retrieval-Augmented Generation) with vector similarity.
-4.  **Reasoning** about the risk using a **Simulated LLM** that generates high-fidelity explanations.
+4.  **Dynamic Sandboxing**: Executing the package in an isolated Docker container with behavioral monitoring to catch runtime threats.
+5.  **Reasoning** about the risk using a **Simulated LLM** that generates high-fidelity explanations based on both static and dynamic findings.
 
 ---
 
@@ -19,8 +20,8 @@ This tool moves beyond simple regex-based heuristic scanners by:
 -   `parser/`: AST parsing for Python/JS and behavioral extraction logic.
 -   `rag/`: Vector database and known malicious pattern storage.
 -   `llm/`: Simulated reasoning engine for risk scoring and explanations.
--   `detector/`: Core orchestration engine.
--   `utils/`: Registry downloaders and file system helpers.
+-   `detector/`: Core orchestration engine and Sandbox Manager.
+-   `utils/`: Registry downloaders, file system helpers, and the sandbox wrapper.
 -   `main.py`: Interactive CLI with rich terminal formatting.
 
 ---
@@ -31,6 +32,9 @@ This tool moves beyond simple regex-based heuristic scanners by:
     ```bash
     pip install -r requirements.txt
     ```
+
+3.  **Docker Desktop** (Required for Dynamic Analysis):
+    The tool requires Docker to run the sandbox. Ensure Docker is running.
 
 2.  **Manual Model Download (Optional but recommended)**:
     If using `all-MiniLM-L6-v2` for the first time, it will automatically download from HuggingFace upon first run.
@@ -73,7 +77,8 @@ uvicorn server:app --reload
     -   `CALL_OS.SYSTEM` -> `SHELL_EXECUTION`
     -   `CALL_REQUESTS.POST` + `CALL_ENVIRON` -> `EXFILTRATION_RISK`
 3.  **Vector RAG**: These sequences are vectorized and compared against `rag/patterns.json` using cosine similarity.
-4.  **Simulated LLM Reasoning**: The analyzer evaluates the combination of behaviors. For example, a network call alone is fine, but a network call combined with environment variable access and base64 encoding triggers a **MALICIOUS** verdict.
+4.  **Dynamic Analysis (Sandbox)**: The tool spins up an isolated Docker container and intercepts runtime calls (like `os.system` or `socket.connect`) via monkey patching. This catches obfuscated malware that hides from static analysis.
+5.  **Simulated LLM Reasoning**: The analyzer evaluates the combination of static behaviors and confirmed runtime events. For example, a network call alone is fine, but a network call confirmed at runtime alongside static environment variable access triggers a **MALICIOUS** verdict with high confidence.
 
 ---
 
@@ -89,12 +94,18 @@ uvicorn server:app --reload
     "pattern": { "threat": "Reverse Shell", "description": "Spawns a remote shell..." },
     "score": 0.85
   },
+  "dynamic_analysis": [
+    { "category": "NETWORK_CONNECTION", "details": { "host": "attacker.com", "port": 80 } }
+  ],
   "analysis": {
     "verdict": "MALICIOUS",
-    "score": 95,
+    "score": 100,
     "reasoning": "AI ANALYSIS REPORT: ...",
     "confidence": "High",
-    "indicators": [["SHELL_EXECUTION", 45], ["NETWORK_REQUEST", 20]]
+    "indicators": [
+      ["Static: SHELL_EXECUTION", 45], 
+      ["Dynamic: Outbound Network Request", 40]
+    ]
   }
 }
 ```
@@ -109,9 +120,8 @@ uvicorn server:app --reload
 ---
 
 ## Limitations & Future Work
--   **Obfuscation**: Advanced malware may use dynamic code generation (`eval` on base64) to hide itself.
 -   **Contextual Analysis**: Some legitimate DevOps tools (like AWS SDK) use similar behaviors; they require higher confidence thresholds.
--   **Future**: Support for Rust/C++ extensions and dynamic sandboxing.
+-   **Future**: Support for Rust/C++ extensions and advanced kernel-level monitoring.
 
 ---
 
