@@ -1,0 +1,32 @@
+[
+  {
+    "id": "MAL_001",
+    "pattern": "this code imports sensitive module OS and reads environment variables and performs network requests",
+    "threat": "Data Exfiltration (Environment Variables)",
+    "description": "The package likely reads API keys or AWS credentials and sends them to a remote server."
+  },
+  {
+    "id": "MAL_002",
+    "pattern": "this code imports sensitive module SUBPROCESS and executes shell commands and performs network requests",
+    "threat": "Remote Code Execution (RCE) / Reverse Shell",
+    "description": "The package executes arbitrary commands requested from a remote server."
+  },
+  {
+    "id": "MAL_003",
+    "pattern": "this code accesses or modifies local file system and uses encoding to obfuscate data",
+    "threat": "Ransomware / Local Data Destruction",
+    "description": "The package is encrypting or deleting files on the local machine."
+  },
+  {
+    "id": "MAL_004",
+    "pattern": "this code imports sensitive module REQUESTS and performs network requests to remote servers and runs in background",
+    "threat": "Botnet / C&C Communication",
+    "description": "The package is part of a larger botnet infrastructure."
+  },
+  {
+    "id": "MAL_005",
+    "pattern": "this code reads sensitive file paths or credentials and performs network requests",
+    "threat": "Credential Stealer",
+    "description": "The package searches for user credentials in common file paths."
+  }
+]
