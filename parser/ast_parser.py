@@ -53,14 +53,48 @@ class ASTParser:
                     
                     if func_name:
                         tokens.append(f"CALL_{func_name.upper()}")
+                        
+                        # Detect Specific Environmental Probing
+                        if func_name == "os.path.exists":
+                            for arg in node.args:
+                                if isinstance(arg, ast.Constant) and arg.value in ["/.dockerenv", "/sys/class/dmi/id/product_name"]:
+                                    tokens.append("ENVIRONMENT_PROBING")
+                                elif isinstance(arg, ast.Str) and hasattr(arg, 's') and arg.s in ["/.dockerenv", "/sys/class/dmi/id/product_name"]:
+                                    tokens.append("ENVIRONMENT_PROBING")
+                        
+                        if func_name == "open":
+                            for arg in node.args:
+                                if isinstance(arg, ast.Constant) and arg.value == "/proc/self/cgroup":
+                                    tokens.append("ENVIRONMENT_PROBING")
+                                elif isinstance(arg, ast.Str) and hasattr(arg, 's') and arg.s == "/proc/self/cgroup":
+                                    tokens.append("ENVIRONMENT_PROBING")
+                        
+                        if "SLEEP" in func_name.upper():
+                            tokens.append("DELAYED_TRIGGER")
+
+                # Detect User/PID Check
+                if isinstance(node, ast.Compare):
+                    if isinstance(node.left, ast.Call):
+                        # getpass.getuser() == 'root'
+                        if hasattr(node.left.func, 'attr') and node.left.func.attr == 'getuser': # type: ignore
+                            for op_node in node.comparators:
+                                if (isinstance(op_node, ast.Constant) and op_node.value == 'root') or \
+                                   (isinstance(op_node, ast.Str) and op_node.s == 'root'): # type: ignore
+                                    tokens.append("ENVIRONMENT_PROBING")
                 
                 # Support different python versions for string extraction
                 if hasattr(ast, 'Constant') and isinstance(node, ast.Constant) and isinstance(node.value, str):
                     if len(node.value) > 3:
-                        tokens.append(f"STR_{str(node.value)[:100]}") # type: ignore
+                        val = str(node.value)
+                        tokens.append(f"STR_{val[:100]}") # type: ignore
+                        if any(x in val for x in ["/.dockerenv", "/proc/self/cgroup", "docker", "kubepods"]):
+                            tokens.append("ENVIRONMENT_PROBING")
                 elif isinstance(node, ast.Str):
                     if hasattr(node, 's') and len(node.s) > 3:
-                        tokens.append(f"STR_{str(node.s)[:100]}")  # type: ignore
+                        val = str(node.s)
+                        tokens.append(f"STR_{val[:100]}")  # type: ignore
+                        if any(x in val for x in ["/.dockerenv", "/proc/self/cgroup", "docker", "kubepods"]):
+                            tokens.append("ENVIRONMENT_PROBING")
             return tokens
         except Exception as e:
             return [f"ERROR_PY_PARSE: {str(e)[:50]}"] # type: ignore

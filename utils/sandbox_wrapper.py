@@ -20,7 +20,10 @@ def log_event(category, details):
 # 1. Patch OS/Subprocess (Shell Execution)
 _original_system = os.system
 def patched_system(command):
-    log_event("SHELL_EXECUTION", {"command": command, "method": "os.system"})
+    category = "SHELL_EXECUTION"
+    if any(cmd in command for cmd in ["lspci", "lsusb", "dmidecode"]):
+        category = "ENVIRONMENT_PROBING"
+    log_event(category, {"command": command, "method": "os.system"})
     return 0 # Success but do nothing real
 
 os.system = patched_system
@@ -28,7 +31,10 @@ os.system = patched_system
 _original_run = subprocess.run
 def patched_run(args, **kwargs):
     cmd = args if isinstance(args, str) else " ".join(map(str, args))
-    log_event("SHELL_EXECUTION", {"command": cmd, "method": "subprocess.run"})
+    category = "SHELL_EXECUTION"
+    if any(c in cmd for c in ["lspci", "lsusb", "dmidecode"]):
+        category = "ENVIRONMENT_PROBING"
+    log_event(category, {"command": cmd, "method": "subprocess.run"})
     class MockResult:
         returncode = 0
         stdout = b""
@@ -44,6 +50,23 @@ def patched_connect(self, address):
     raise ConnectionRefusedError(f"Sandboxed: Connection to {address} blocked.")
 
 socket.socket.connect = patched_connect
+
+# 3. Patch Inspect (Introspection Detection)
+try:
+    import inspect
+    _original_getsource = inspect.getsource
+    def patched_getsource(obj):
+        log_event("INTROSPECTION_DETECTION", {"object": str(obj), "method": "inspect.getsource"})
+        return _original_getsource(obj)
+    inspect.getsource = patched_getsource # type: ignore
+    
+    _original_getfile = inspect.getfile
+    def patched_getfile(obj):
+        log_event("INTROSPECTION_DETECTION", {"object": str(obj), "method": "inspect.getfile"})
+        return _original_getfile(obj)
+    inspect.getfile = patched_getfile # type: ignore
+except ImportError:
+    pass
 
 # --- Execution ---
 

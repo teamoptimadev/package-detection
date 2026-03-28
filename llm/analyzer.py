@@ -10,7 +10,9 @@ class LLMAnalyzer:
             "FILE_ACCESS": 15,
             "SENSITIVE_STRING_FOUND": 30,
             "DATA_ENCODING": 10,
-            "URL_FOUND": 5
+            "URL_FOUND": 5,
+            "ENVIRONMENT_PROBING": 40,
+            "DELAYED_TRIGGER": 15
         }
         
         # Whitelist of ultra-popular packages that use complex build systems
@@ -46,10 +48,23 @@ class LLMAnalyzer:
                 elif cat == "NETWORK_CONNECTION":
                     score += 40 # type: ignore
                     matched_indicators.append(("Dynamic: Outbound Network Request", 40))
+                elif cat == "ENVIRONMENT_PROBING":
+                    score += 50 # type: ignore
+                    matched_indicators.append(("Dynamic: Virtual Hardware Discovery", 50))
+                elif cat == "INTROSPECTION_DETECTION":
+                    score += 30 # type: ignore
+                    matched_indicators.append(("Dynamic: Code Introspection/Sandbox Analysis", 30))
                 elif cat == "RUNTIME_ERROR":
                     # Potentially obfuscated code crashing under patching
                     score += 10 # type: ignore
                     matched_indicators.append(("Dynamic: Runtime Error (Suspicious)", 10))
+
+        # Check for REPUTATION_MISMATCH (Small package with Complex Discovery)
+        is_high_rep = package_name and package_name.lower() in self.HIGH_REPUTATION_PACKAGES
+        has_probing = "ENVIRONMENT_PROBING" in behaviors or any(e.get("category") == "ENVIRONMENT_PROBING" for e in dynamic_results or [])
+        if not is_high_rep and has_probing:
+            score += 20
+            matched_indicators.append(("Risk Factor: Reputation Mismatch (discovery in unknown package)", 20))
 
         # 2. Factor in RAG Similarity
         highest_rag_match = None
