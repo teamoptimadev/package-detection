@@ -12,8 +12,14 @@ class LLMAnalyzer:
             "DATA_ENCODING": 10,
             "URL_FOUND": 5
         }
+        
+        # Whitelist of ultra-popular packages that use complex build systems
+        self.HIGH_REPUTATION_PACKAGES = {
+            "numpy", "pandas", "requests", "flask", "django", "scipy", "scikit-learn", 
+            "matplotlib", "tensorflow", "torch", "express", "react", "vue", "next"
+        }
 
-    def analyze(self, behaviors, rag_results, dynamic_results=None):
+    def analyze(self, behaviors, rag_results, dynamic_results=None, package_name=None):
         """Perform simulated LLM analysis of the package behaviors and RAG matches."""
         
         # 1. Calculate Base Risk Score
@@ -60,8 +66,19 @@ class LLMAnalyzer:
                 score += boost
                 matched_indicators.append((f"Likely related to pattern: {highest_rag_match['pattern']['threat']}", boost))
 
+        # 2b. Apply Reputation Discount
+        reputation_discount = 0
+        if package_name and package_name.lower() in self.HIGH_REPUTATION_PACKAGES:
+            # Major discount for known good packages unless dynamic results are found
+            if not dynamic_results:
+                reputation_discount = 50
+                matched_indicators.append((f"Reputation: High-trust package ({package_name})", -50))
+            else:
+                reputation_discount = 15
+                matched_indicators.append((f"Reputation: Verified package, but with dynamic events", -15))
+
         # Clamp score to 0-100
-        final_score = min(100, int(score))
+        final_score = max(0, min(100, int(score - reputation_discount)))
 
         # 3. Determine Verdict and Confidence
         # Higher confidence if dynamic analysis confirmed findings

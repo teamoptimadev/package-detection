@@ -59,7 +59,7 @@ class DetectionEngine:
         dynamic_results = self.sandbox.run_dynamic_analysis(path)
 
         # 5. LLM Analysis
-        analysis_result = self.analyzer.analyze(behaviors, rag_results, dynamic_results)
+        analysis_result = self.analyzer.analyze(behaviors, rag_results, dynamic_results, package_name)
 
         return {
             "package_name": package_name,
